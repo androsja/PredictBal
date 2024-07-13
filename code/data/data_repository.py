@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import RobustScaler
 class DataRepository:
-    def __init__(self, base_dir='/Users/jflorezgaleano/Documents/JulianFlorez/PredictBal/models_ia'):
+    def __init__(self, base_dir='/Users/jflorezgaleano/Documents/JulianFlorez/PredictBalGit/models_ia'):
         self.base_dir = base_dir
 
     def save_data(self, X, Y, data_normalized, time_step):

@@ -1,6 +1,6 @@
+# File: code/utils/plot_saver.py
 import matplotlib.pyplot as plt
 import os
-
 
 class PlotSaver:
     def __init__(self, base_dir, project_name):
@@ -8,6 +8,8 @@ class PlotSaver:
         self.project_name = project_name
 
     def save_plot(self, trial_id, y_true, y_pred):
+        plt.switch_backend('Agg')  # Use the non-GUI backend for matplotlib
+
         trial_dir = os.path.join(self.base_dir, self.project_name, f'trial_{trial_id}')
         if not os.path.exists(trial_dir):
             os.makedirs(trial_dir)

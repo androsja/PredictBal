@@ -5,7 +5,7 @@ from dataset_creator import DatasetCreator
 
 class DatasetCreatorFactory:
     def __init__(self):
-        self.file_path = "/Users/jflorezgaleano/Documents/JulianFlorez/PredictBal//historic_data/bal_results.txt"
+        self.file_path = "/Users/jflorezgaleano/Documents/JulianFlorez/PredictBalGit/historic_data/bal_results.txt"
 
     def create_dataset_creator(self, time_step):
         data = self.read_file_contents()

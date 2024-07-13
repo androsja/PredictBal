@@ -1,133 +1,74 @@
-# File: code/model/model_tuner.py
 import os
-import numpy as np
-import pandas as pd
 import pickle
 import tensorflow as tf
 from keras.callbacks import EarlyStopping
-from keras_tuner.oracles import HyperbandOracle
 from custom_tuner import CustomTuner
 from model_manager import ModelManager
-from model.model_builder_factory_five import ModelBuilderFactoryFive
-from model.model_builder_factory_sixth import ModelBuilderFactorySixth
+from model_builder_factory import ModelBuilderFactory
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from tensorflow.keras import backend as K
 from tune_report_callback import TuneReportCallback
 from utils.plot_saver import PlotSaver
 
 class ModelTuner:
-    def __init__(self, X_train_five, y_train_five, X_val_five, y_val_five, X_train_sixth, y_train_sixth, X_val_sixth, y_val_sixth, time_step):
-        self.X_train_five = X_train_five
-        self.y_train_five = y_train_five
-        self.X_val_five = X_val_five
-        self.y_val_five = y_val_five
-        self.X_train_sixth = X_train_sixth
-        self.y_train_sixth = y_train_sixth
-        self.X_val_sixth = X_val_sixth
-        self.y_val_sixth = y_val_sixth
+    def __init__(self, X_train, y_train, X_val, y_val, time_step, input_dim, output_dim, drive_dir, project_name, folder_name):
+        self.X_train = X_train
+        self.y_train = y_train
+        self.X_val = X_val
+        self.y_val = y_val
         self.time_step = time_step
-        self.tuner_five = None
-        self.tuner_sixth = None
-        self.oracle = None
-        self.drive_dir = f'/Users/jflorezgaleano/Documents/JulianFlorez/PredictBal/models_ia/'
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.drive_dir = drive_dir
+        self.project_name = project_name
+        self.folder_name = folder_name
+        self.model_path = os.path.join(self.drive_dir, self.folder_name, f'model_{self.project_name}.h5')
+        self.hyperparameters_path = os.path.join(self.drive_dir, self.folder_name, f'hyperparameters_{self.project_name}.pkl')
+        self.tuner = None
 
-        if not os.path.exists(self.drive_dir):
-            os.makedirs(self.drive_dir)
+    def tune_model(self, oracle, max_epochs=100):
+        model_builder = ModelBuilderFactory.create(self.time_step, self.input_dim, self.output_dim)
 
-        self.model_path_five = os.path.join(self.drive_dir, f'model_five.h5')
-        self.model_path_sixth = os.path.join(self.drive_dir, f'model_sixth.h5')
-        self.hyperparameters_path_five = os.path.join(self.drive_dir, f'hyperparameters_five.pkl')
-        self.hyperparameters_path_sixth = os.path.join(self.drive_dir, f'hyperparameters_sixth.pkl')
-
-    def tune_model(self, filter_months, max_epochs=100, hyperband_iterations=1):
-
-        self.oracle = HyperbandOracle(
-            objective='val_loss',
-            max_epochs=max_epochs,
-            factor=2,
-            hyperband_iterations=hyperband_iterations,
-        )
-        project_name_dir_in = 'lottery_prediction'
-
-        # Tuning for first five numbers
-        model_builder_five = ModelBuilderFactoryFive.create(self.time_step, 5)
-
-        self.tuner_five = CustomTuner(
-            oracle=self.oracle,
-            X_val=self.X_val_five,
-            y_val=self.y_val_five,
-            plot_saver = PlotSaver(self.drive_dir, project_name_dir_in),
-            hypermodel=model_builder_five.build_model,
-            directory=self.drive_dir,
-            project_name=project_name_dir_in + '_five',
-            overwrite=False
+        self.tuner = CustomTuner(
+            oracle=oracle,
+            hypermodel=model_builder.build_model,
+            directory=os.path.join(self.drive_dir, self.folder_name),
+            project_name=self.project_name,
+            overwrite=False,
+            X_val=self.X_val,
+            y_val=self.y_val,
+            plot_saver=PlotSaver(self.drive_dir, self.project_name)
         )
 
-        tune_report_callback = TuneReportCallback(self.X_val_five, self.y_val_five)
+        tune_report_callback = TuneReportCallback(self.X_val, self.y_val)
 
-        self.tuner_five.search(
-            x=self.X_train_five, y=self.y_train_five,
+        self.tuner.search(
+            x=self.X_train, y=self.y_train,
             epochs=max_epochs,
+            validation_data=(self.X_val, self.y_val),
             callbacks=[EarlyStopping(monitor='val_loss', patience=3), tune_report_callback]
         )
 
-        best_trial_five = self.oracle.get_best_trials(num_trials=1)[0]
-        best_hps_five = best_trial_five.hyperparameters
+        best_trial = oracle.get_best_trials(num_trials=1)[0]
+        best_hps = best_trial.hyperparameters
 
-        with open(self.hyperparameters_path_five, 'wb') as f:
-            pickle.dump(best_hps_five.values, f)
+        with open(self.hyperparameters_path, 'wb') as f:
+            pickle.dump(best_hps.values, f)
 
-        model_five = self.tuner_five.hypermodel.build(best_hps_five)
-
-        es = EarlyStopping(monitor='loss', patience=3)
-        history = model_five.fit(self.X_train_five, self.y_train_five, epochs=max_epochs, batch_size=best_hps_five.get('batch_size'), validation_data=(self.X_val_five, self.y_val_five), callbacks=[es])
-
-        self.print_model_summary(model_five, best_hps_five)
-        self.print_evaluation_metrics(history, self.X_train_five, self.y_train_five, model_five)
-
-        ModelManager.save_model_and_hyperparameters(model_five, best_hps_five, self.model_path_five, self.hyperparameters_path_five)
-
-        # Tuning for sixth number
-        model_builder_sixth = ModelBuilderFactorySixth.create(self.time_step, 6)
-
-        self.tuner_sixth = CustomTuner(
-            oracle=self.oracle,
-            X_val=self.X_val_sixth,
-            y_val=self.y_val_sixth,
-            plot_saver = PlotSaver(self.drive_dir, project_name_dir_in),
-            hypermodel=model_builder_sixth.build_model,
-            directory=self.drive_dir,
-            project_name=project_name_dir_in + '_sixth',
-            overwrite=False
-        )
-
-        tune_report_callback = TuneReportCallback(self.X_val_sixth, self.y_val_sixth)
-
-        self.tuner_sixth.search(
-            x=self.X_train_sixth, y=self.y_train_sixth,
-            epochs=max_epochs,
-            callbacks=[EarlyStopping(monitor='val_loss', patience=3), tune_report_callback]
-        )
-
-        best_trial_sixth = self.oracle.get_best_trials(num_trials=1)[0]
-        best_hps_sixth = best_trial_sixth.hyperparameters
-
-        with open(self.hyperparameters_path_sixth, 'wb') as f:
-            pickle.dump(best_hps_sixth.values, f)
-
-        model_sixth = self.tuner_sixth.hypermodel.build(best_hps_sixth)
+        model = self.tuner.hypermodel.build(best_hps)
 
         es = EarlyStopping(monitor='loss', patience=3)
-        history = model_sixth.fit(self.X_train_sixth, self.y_train_sixth, epochs=max_epochs, batch_size=best_hps_sixth.get('batch_size'), validation_data=(self.X_val_sixth, self.y_val_sixth), callbacks=[es])
+        history = model.fit(self.X_train, self.y_train, epochs=max_epochs, batch_size=best_hps.get('batch_size'), validation_data=(self.X_val, self.y_val), callbacks=[es])
 
-        self.print_model_summary(model_sixth, best_hps_sixth)
-        self.print_evaluation_metrics(history, self.X_train_sixth, self.y_train_sixth, model_sixth)
+        self.print_model_summary(model, best_hps)
+        self.print_evaluation_metrics(history, self.X_train, self.y_train, model)
 
-        ModelManager.save_model_and_hyperparameters(model_sixth, best_hps_sixth, self.model_path_sixth, self.hyperparameters_path_sixth)
+        ModelManager.save_model_and_hyperparameters(model, best_hps, self.model_path, self.hyperparameters_path)
 
         K.clear_session()
 
-        return model_five, model_sixth
+        y_pred_val = model.predict(self.X_val)
+        return model, best_hps, self.y_val, y_pred_val
 
     def print_model_summary(self, model, best_hps):
         print("Model summary:")

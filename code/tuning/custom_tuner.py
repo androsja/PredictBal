@@ -1,3 +1,4 @@
+# File: code/tuning/custom_tuner.py
 from keras_tuner import Tuner
 import tensorflow as tf
 from sklearn.metrics import mean_squared_error, mean_absolute_error
@@ -9,18 +10,16 @@ class CustomTuner(Tuner):
         self.y_val = y_val
         self.plot_saver = plot_saver
 
-    def run_trial(self, trial, x, y, epochs, callbacks=None):
+    def run_trial(self, trial, x, y, epochs, validation_data=None, callbacks=None):
         self.model = self.hypermodel.build(trial.hyperparameters)
 
-        # Incluir los datos de validación en el proceso de entrenamiento
         history = self.model.fit(
             x, y,
             epochs=epochs,
-            validation_data=(self.X_val, self.y_val),
+            validation_data=validation_data,
             callbacks=callbacks or []
         )
         
-        # Predicción y guardado del gráfico al finalizar el trial
         y_pred = self.model.predict(self.X_val)
         trial_id = trial.trial_id
         self.plot_saver.save_plot(trial_id, self.y_val, y_pred)
