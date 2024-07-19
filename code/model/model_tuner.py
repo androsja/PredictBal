@@ -9,7 +9,6 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 from tensorflow.keras import backend as K
 from tune_report_callback import TuneReportCallback
 from utils.plot_saver import PlotSaver
-
 class ModelTuner:
     def __init__(self, X_train, y_train, X_val, y_val, time_step, input_dim, output_dim, drive_dir, project_name, folder_name):
         self.X_train = X_train

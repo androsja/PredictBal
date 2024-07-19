@@ -12,9 +12,9 @@ class ModelBuilder:
     def build_model(self, hp):
         model = Sequential()
         model.add(Input(shape=(self.time_step, self.input_dim)))
-        num_layers = hp.Int('num_layers', 8, 15)
+        num_layers = hp.Int('num_layers', 5, 7)
         for i in range(num_layers):
-            units = hp.Int('units', 32, 128, step=32)
+            units = hp.Int('units', 32, 64, step=32)
             return_sequences = i < num_layers - 1
             model.add(LSTM(units=units, return_sequences=return_sequences))
             model.add(Dropout(hp.Float('dropout', 0.1, 0.3, step=0.1)))
