@@ -1,8 +1,5 @@
 # File: code/data/data_inspector.py
 import pandas as pd
-import numpy as np
-import pandas as pd
-import numpy as np
 
 class DataInspector:
     def __init__(self, data_splits):
@@ -32,6 +29,10 @@ class DataInspector:
         print("\nSample Data (First and Last Rows):")
 
         def format_sample(X, y, name):
+            if len(X) == 0:
+                print(f"\n{name} Data: No data available.")
+                return
+
             df_X = pd.DataFrame(X.reshape(X.shape[0], -1))  # Flattening for better readability
             df_y = pd.DataFrame(y)
             sample_data = pd.concat([df_X, df_y], axis=1)

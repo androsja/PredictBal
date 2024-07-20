@@ -54,7 +54,6 @@ try:
 
     X_all_data_five, y_all_data_five = data_splits['all_data']
     X_train_five, y_train_five = data_splits['train_five']
-    X_val_five, y_val_five = data_splits['val_five']
     X_test_five, y_test_five = data_splits['test_five']
     scalers = data_splits['scalers']
 
@@ -67,14 +66,14 @@ try:
         print(best_hps_values_five)
     else:
         print("Init Model Tuner for 'five'")
-        tuner_five = ModelTuner(X_train_five, y_train_five, X_val_five, y_val_five, time_step, 5, 5, drive_dir, "five", "five")
+        tuner_five = ModelTuner(X_train_five, y_train_five, time_step, 5, 5, drive_dir, "five", "five")
         oracle_five = HyperbandOracle(
-            objective='val_loss',
+            objective='loss',
             max_epochs=max_epochs,
             factor=2,
             hyperband_iterations=hyperband_iterations
         )
-        model_five, best_hps_five, _, _ = tuner_five.tune_model(oracle_five, max_epochs=max_epochs)
+        model_five, best_hps_five = tuner_five.tune_model(oracle_five, max_epochs=max_epochs)
         ModelManager.save_model_and_hyperparameters(model_five, best_hps_five, model_path_five, hyperparameters_path_five)
 
     print("---------------GRAFICAR toDOS LOS DATOS-----------------")
