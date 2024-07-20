@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 def add_subdirectories_to_syspath(directory):
     for dirpath, dirnames, filenames in os.walk(directory):
@@ -15,7 +16,6 @@ from tensorflow.keras.models import load_model
 from keras_tuner.oracles import HyperbandOracle
 from tensorflow.keras.optimizers import Adam
 from model.model_manager import ModelManager
-from model.model_evaluator import ModelEvaluator
 from model.model_tuner import ModelTuner
 from utils.data_plotter import DataPlotter
 from keras.callbacks import EarlyStopping
@@ -23,12 +23,15 @@ from data.data_splitter import DataSplitter
 from data.data_inspector import DataInspector
 from utils.next_sequence_predictor import NextSequencePredictor
 
+# Importar y registrar la métrica personalizada
+from custom_metrics import CustomMeanSquaredError
+
 time_step = 1
 max_epochs = 50  # Máximo número de épocas por trial
 hyperband_iterations = 3  # Número de iteraciones de Hyperband
 
 try:
-    drive_dir = f'/Users/jflorezgaleano/Documents/JulianFlorez/PredictBalGit/models_ia/'
+    drive_dir = f'models_ia/'
     model_path_five = f'{drive_dir}/five/model_five.h5'
     model_path_sixth = f'{drive_dir}/sixth/model_sixth.h5'
     hyperparameters_path_five = f'{drive_dir}/five/hyperparameters_five.pkl'
@@ -60,10 +63,14 @@ try:
     print("Init Search for model")
     if ModelManager.model_exists(model_path_five, hyperparameters_path_five):
         print("Cargando el mejor modelo guardado desde el disco local.")
-        model_five, best_hps_values_five = ModelManager.load_model_and_hyperparameters(model_path_five, hyperparameters_path_five)
-
-        print("Hiperparámetros cargados desde el disco local:")
-        print(best_hps_values_five)
+        try:
+            print(f"Loading model from {model_path_five} with custom objects: {{'mean_squared_error': CustomMeanSquaredError}}")
+            model_five, best_hps_values_five = ModelManager.load_model_and_hyperparameters(model_path_five, hyperparameters_path_five)
+            print("Hiperparámetros cargados desde el disco local:")
+            print(best_hps_values_five)
+        except Exception as e:
+            print(f"Error loading model and hyperparameters: {e}")
+            raise
     else:
         print("Init Model Tuner for 'five'")
         tuner_five = ModelTuner(X_train_five, y_train_five, time_step, 5, 5, drive_dir, "five", "five")
@@ -80,23 +87,21 @@ try:
     DataPlotter.plot_data(X_all_data_five, y_all_data_five, "Original Data (First Five)")
 
     print("---------------GRAFICAR DATOS TEST-----------------")
-    DataPlotter.plot_data(X_test_five, y_test_five, "Test Data (First Five)")
+    if X_test_five.size > 0:
+        DataPlotter.plot_data(X_test_five, y_test_five, "Test Data (First Five)")
 
     data_inspector.inspect_data()
     print("Data inspection completed again")
 
-    evaluator_five = ModelEvaluator(model_five, X_test_five, y_test_five, scalers, X_all_data_five)
-    evaluator_five.evaluate()
-    print("Model evaluation completed")
 
     print("--------------PREDICTION-----------------")
-    # Obtener los últimos 10 elementos de X_test_five
-    last_sequence_five = X_test_five[-1]
-    
+    # Obtener los últimos elementos de X_train_five
+    last_sequence_five = X_train_five[-1]
+
     # Usar NextSequencePredictor para predecir la siguiente secuencia
     predictor_five = NextSequencePredictor(model_five, scalers, time_step)
     next_five = predictor_five.predict_next_sequence(last_sequence_five)
-    
+
     # Mostrar la predicción
     print("Predicción para los siguientes 5 números:", next_five)
 

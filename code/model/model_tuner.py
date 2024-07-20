@@ -1,3 +1,4 @@
+# File: code/model/model_tuner.py
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 import os
 import pickle
@@ -25,7 +26,6 @@ class ModelTuner:
         self.tuner = None
 
     def tune_model(self, oracle, max_epochs=100):
-        print("-------------tune_model-------------")
         model_builder = ModelBuilderFactory.create(self.time_step, self.input_dim, self.output_dim)
         objective = CustomObjective(use_validation=False)
 
@@ -37,7 +37,7 @@ class ModelTuner:
             overwrite=False,
             plot_saver=PlotSaver(self.drive_dir, self.project_name)
         )
-        print("-------------EarlyStopping-------------")
+
         callbacks = [EarlyStopping(monitor='loss', patience=3)]
 
         self.tuner.search(
@@ -45,31 +45,26 @@ class ModelTuner:
             epochs=max_epochs,
             callbacks=callbacks
         )
-        print("-------------get_best_trials-------------")
+
         best_trial = oracle.get_best_trials(num_trials=1)[0]
         best_hps = best_trial.hyperparameters
 
         with open(self.hyperparameters_path, 'wb') as f:
             pickle.dump(best_hps.values, f)
 
-        print("-------------hypermodel-------------")
         model = self.tuner.hypermodel.build(best_hps)
-        print("-------------EarlyStopping-------------")
+
         es = EarlyStopping(monitor='loss', patience=3)
         history = model.fit(self.X_train, self.y_train, epochs=max_epochs, batch_size=best_hps.get('batch_size'), callbacks=[es])
-        print("-------------print_model_summary-------------")
+
         self.print_model_summary(model, best_hps)
-        print("-------------print_evaluation_metrics-------------")
         self.print_evaluation_metrics(history, self.X_train, self.y_train, model)
 
-        print("-------------save_model_and_hyperparameters-------------")
         ModelManager.save_model_and_hyperparameters(model, best_hps, self.model_path, self.hyperparameters_path)
 
         K.clear_session()
 
         return model, best_hps
-
-
 
     def print_model_summary(self, model, best_hps):
         print("Model summary:")
@@ -85,12 +80,3 @@ class ModelTuner:
         r2_train_result = r2_train.result().numpy()
 
         print(f"Evaluación en datos de entrenamiento: MSE = {mse_train:.4f}, MAE = {mae_train:.4f}, R² = {r2_train_result:.4f}")
-
-        # Check if 'val_loss' is in history
-        if 'val_loss' in history.history:
-            val_loss = history.history['val_loss'][-1]
-            print(f"Pérdida en datos de validación: {val_loss:.4f}")
-        else:
-            print("No se realizaron evaluaciones en datos de validación.")
-
-

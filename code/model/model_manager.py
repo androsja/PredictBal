@@ -1,8 +1,15 @@
+# File: code/model/model_manager.py
 import os
 import numpy as np
-import pandas as pd
 import pickle
 from tensorflow.keras.models import load_model, save_model
+from custom_metrics import CustomMeanSquaredError
+import tensorflow as tf
+
+# Registrar explícitamente la función mse
+@tf.keras.utils.register_keras_serializable()
+def mse(y_true, y_pred):
+    return tf.keras.losses.mean_squared_error(y_true, y_pred)
 
 class ModelManager:
     @staticmethod
@@ -14,7 +21,9 @@ class ModelManager:
 
     @staticmethod
     def load_model_and_hyperparameters(model_path, hyperparameters_path):
-        model = load_model(model_path)
+        custom_objects = {'mean_squared_error': CustomMeanSquaredError, 'mse': mse}
+        print(f"Loading model from {model_path} with custom objects: {custom_objects}")
+        model = load_model(model_path, custom_objects=custom_objects)
         with open(hyperparameters_path, 'rb') as f:
             hyperparameters = pickle.load(f)
         print("Model and hyperparameters loaded from disk")

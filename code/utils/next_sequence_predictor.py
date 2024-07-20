@@ -1,10 +1,9 @@
-# File: code/utils/next_sequence_predictor.py
 import numpy as np
 
 class NextSequencePredictor:
-    def __init__(self, model, scaler, time_step):
+    def __init__(self, model, scalers, time_step):
         self.model = model
-        self.scaler = scaler
+        self.scalers = scalers  # Ahora es un diccionario de escaladores
         self.time_step = time_step
 
     def predict_next_sequence(self, input_sequence):
@@ -12,8 +11,10 @@ class NextSequencePredictor:
         if len(input_sequence) != self.time_step:
             raise ValueError(f"La secuencia de entrada debe tener {self.time_step} pasos de tiempo.")
         
-        # Escalar la secuencia de entrada
-        input_sequence_scaled = self.scaler.transform(input_sequence)
+        # Escalar la secuencia de entrada usando cada escalador correspondiente
+        input_sequence_scaled = np.zeros_like(input_sequence)
+        for i in range(input_sequence.shape[1]):
+            input_sequence_scaled[:, i] = self.scalers[i].transform(input_sequence[:, i].reshape(-1, 1)).flatten()
         
         # Asegurarse de que la entrada tiene la forma correcta
         input_sequence_scaled = input_sequence_scaled.reshape(1, self.time_step, input_sequence_scaled.shape[1])
@@ -22,7 +23,9 @@ class NextSequencePredictor:
         prediction_scaled = self.model.predict(input_sequence_scaled)
         
         # Invertir la escala de la predicción
-        prediction = self.scaler.inverse_transform(prediction_scaled)
+        prediction = np.zeros_like(prediction_scaled)
+        for i in range(prediction_scaled.shape[1]):
+            prediction[:, i] = self.scalers[i].inverse_transform(prediction_scaled[:, i].reshape(-1, 1)).flatten()
         
         return prediction.flatten().tolist()
 
