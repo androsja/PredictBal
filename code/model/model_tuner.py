@@ -9,62 +9,43 @@ from model_manager import ModelManager
 from model_builder_factory import ModelBuilderFactory
 from tensorflow.keras import backend as K
 from utils.plot_saver import PlotSaver
-from tuning.custom_objective import CustomObjective
+from keras_tuner import RandomSearch
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.optimizers import Adam
 
 class ModelTuner:
-    def __init__(self, X_train, y_train, time_step, input_dim, output_dim, drive_dir, project_name, folder_name):
+    def __init__(self, X_train, y_train, time_step, output_size, max_units, directory, project_name):
         self.X_train = X_train
         self.y_train = y_train
         self.time_step = time_step
-        self.input_dim = input_dim
-        self.output_dim = output_dim
-        self.drive_dir = drive_dir
+        self.output_size = output_size
+        self.max_units = max_units
+        self.directory = directory
         self.project_name = project_name
-        self.folder_name = folder_name
-        self.model_path = os.path.join(self.drive_dir, self.folder_name, f'model_{self.project_name}.h5')
-        self.hyperparameters_path = os.path.join(self.drive_dir, self.folder_name, f'hyperparameters_{self.project_name}.pkl')
-        self.tuner = None
 
-    def tune_model(self, oracle, max_epochs=100):
-        model_builder = ModelBuilderFactory.create(self.time_step, self.input_dim, self.output_dim)
-        objective = CustomObjective(use_validation=False)
+    def build_model(self, hp):
+        model = Sequential()
+        num_layers = hp.Int('num_layers', 1, 5)
+        for i in range(num_layers):
+            model.add(LSTM(units=hp.Int('units', min_value=32, max_value=self.max_units, step=32), 
+                           return_sequences=True if i < num_layers - 1 else False, 
+                           input_shape=(self.time_step, self.X_train.shape[2])))
+            model.add(Dropout(rate=hp.Float('dropout', min_value=0.0, max_value=0.5, step=0.1)))
+        model.add(Dense(units=self.output_size, activation='linear'))
+        model.compile(optimizer=Adam(hp.Float('learning_rate', min_value=1e-4, max_value=1e-2, sampling='LOG')), loss='mean_squared_error')
+        return model
 
-        self.tuner = CustomTuner(
-            oracle=oracle,
-            hypermodel=model_builder.build_model,
-            directory=os.path.join(self.drive_dir, self.folder_name),
-            project_name=self.project_name,
-            overwrite=False,
-            plot_saver=PlotSaver(self.drive_dir, self.project_name)
-        )
-
-        callbacks = [EarlyStopping(monitor='loss', patience=3)]
-
-        self.tuner.search(
-            x=self.X_train, y=self.y_train,
-            epochs=max_epochs,
-            callbacks=callbacks
-        )
-
-        best_trial = oracle.get_best_trials(num_trials=1)[0]
-        best_hps = best_trial.hyperparameters
-
-        with open(self.hyperparameters_path, 'wb') as f:
-            pickle.dump(best_hps.values, f)
-
-        model = self.tuner.hypermodel.build(best_hps)
-
-        es = EarlyStopping(monitor='loss', patience=3)
-        history = model.fit(self.X_train, self.y_train, epochs=max_epochs, batch_size=best_hps.get('batch_size'), callbacks=[es])
-
-        self.print_model_summary(model, best_hps)
-        self.print_evaluation_metrics(history, self.X_train, self.y_train, model)
-
-        ModelManager.save_model_and_hyperparameters(model, best_hps, self.model_path, self.hyperparameters_path)
-
-        K.clear_session()
-
+    def tune_model(self, tuner, max_epochs):
+        print(f"Tuner summary:\n{tuner}")
+        tuner.search(self.X_train, self.y_train, epochs=max_epochs, validation_split=0.2, callbacks=[EarlyStopping('val_loss', patience=5)])
+        best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
+        model = tuner.hypermodel.build(best_hps)
         return model, best_hps
+
+    def print_details(self):
+        print(f"ModelTuner initialized with X_train shape: {self.X_train.shape}, y_train shape: {self.y_train.shape}, time_step: {self.time_step}, output_size: {self.output_size}, max_units: {self.max_units}, directory: {self.directory}, project_name: {self.project_name}")
+
 
     def print_model_summary(self, model, best_hps):
         print("Model summary:")

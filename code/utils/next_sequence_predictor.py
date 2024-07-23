@@ -1,10 +1,12 @@
+# File: code/utils/next_sequence_predictor.py
 import numpy as np
 
 class NextSequencePredictor:
-    def __init__(self, model, scalers, time_step):
+    def __init__(self, model, scalers, time_step, output_range=None):
         self.model = model
-        self.scalers = scalers  # Ahora es un diccionario de escaladores
+        self.scalers = scalers
         self.time_step = time_step
+        self.output_range = output_range
 
     def predict_next_sequence(self, input_sequence):
         # Asegurarse de que la secuencia de entrada tiene el tamaño adecuado para el time_step
@@ -27,7 +29,12 @@ class NextSequencePredictor:
         for i in range(prediction_scaled.shape[1]):
             prediction[:, i] = self.scalers[i].inverse_transform(prediction_scaled[:, i].reshape(-1, 1)).flatten()
         
-        return prediction.flatten().tolist()
+        prediction = prediction.flatten().tolist()
+
+        if self.output_range:
+            prediction = [max(self.output_range[0], min(value, self.output_range[1])) for value in prediction]
+        
+        return prediction
 
     def print_prediction(self, input_sequence):
         next_sequence = self.predict_next_sequence(input_sequence)

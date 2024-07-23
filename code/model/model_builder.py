@@ -12,14 +12,15 @@ class ModelBuilder:
     def build_model(self, hp):
         model = Sequential()
         model.add(Input(shape=(self.time_step, self.input_dim)))
-        num_layers = hp.Int('num_layers', 5, 7)
+        num_layers = hp.Int('num_layers', 1, 5)
         for i in range(num_layers):
-            units = hp.Int('units', 32, 64, step=32)
+            units = hp.Int('units', 32, 128, step=32)
             return_sequences = i < num_layers - 1
             model.add(LSTM(units=units, return_sequences=return_sequences))
             model.add(Dropout(hp.Float('dropout', 0.1, 0.3, step=0.1)))
 
-        model.add(Dense(self.output_dim, activation='linear'))
+        # La capa de salida tiene un solo nodo
+        model.add(Dense(1, activation='linear'))
 
         learning_rate = hp.Float('learning_rate', 1e-3, 1e-2, sampling='LOG')
         model.compile(

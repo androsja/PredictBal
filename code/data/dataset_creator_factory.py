@@ -1,3 +1,4 @@
+# File: code/data/dataset_creator_factory.py
 import os
 import numpy as np
 import pandas as pd
@@ -7,11 +8,11 @@ class DatasetCreatorFactory:
     def __init__(self):
         self.file_path = "historic_data/bal_results_i.txt"
 
-    def create_dataset_creator(self, time_step):
+    def create_dataset_creator(self, time_step, use_sixth_column=False):
         data = self.read_file_contents()
         df = self.convert_content_to_dataframe(data)
         print("Data for bal results getted")
-        return DatasetCreator(df, time_step)
+        return DatasetCreator(df, time_step, use_sixth_column=use_sixth_column)
 
     def read_file_contents(self):
         with open(self.file_path, 'r') as file:

@@ -2,12 +2,14 @@
 import os
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler  # Cambiado a MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler
 from data.data_repository import DataRepository
+
 class DatasetCreator:
-    def __init__(self, data, time_step):
+    def __init__(self, data, time_step, use_sixth_column=False):
         self.time_step = time_step
         self.data = data
+        self.use_sixth_column = use_sixth_column
         self.data_repository = DataRepository()
         self.scalers = {}
 
@@ -25,24 +27,27 @@ class DatasetCreator:
     def create_dataset(self):
         print("Iniciando la creación del dataset...")
 
-        data_subset = self.data.iloc[:, :5]  # Usar solo las primeras 5 columnas
+        if self.use_sixth_column:
+            data_subset = self.data.iloc[:, [5]]  # Usar solo la sexta columna
+        else:
+            data_subset = self.data.iloc[:, :5]  # Usar solo las primeras 5 columnas
         print(data_subset.head())
 
         self.data_normalized = self.normalize_data(data_subset)
 
-        X_first_five, Y_first_five = [], []
+        X, Y = [], []
         for i in range(len(self.data_normalized) - self.time_step):
-            a_first_five = self.data_normalized.iloc[i:(i + self.time_step), :5].values
-            X_first_five.append(a_first_five)
-            Y_first_five.append(self.data_normalized.iloc[i + self.time_step, :5].values)
+            a = self.data_normalized.iloc[i:(i + self.time_step), :].values
+            X.append(a)
+            Y.append(self.data_normalized.iloc[i + self.time_step, :].values)
 
-        self.X_first_five = np.array(X_first_five)
-        self.Y_first_five = np.array(Y_first_five)
+        self.X = np.array(X)
+        self.Y = np.array(Y)
 
-        print("Forma final de X_first_five:", self.X_first_five.shape)
-        print("Forma final de Y_first_five:", self.Y_first_five.shape)
+        print("Forma final de X:", self.X.shape)
+        print("Forma final de Y:", self.Y.shape)
         print("Columnas en los datos normalizados:", self.data_normalized.columns)
 
-        self.data_repository.save_data(self.X_first_five, self.Y_first_five, self.data_normalized, self.time_step)
+        self.data_repository.save_data(self.X, self.Y, self.data_normalized, self.time_step)
 
-        return self.X_first_five, self.Y_first_five, self.scalers
+        return self.X, self.Y, self.scalers

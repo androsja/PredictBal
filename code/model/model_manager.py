@@ -4,6 +4,7 @@ import numpy as np
 import pickle
 from tensorflow.keras.models import load_model, save_model
 from custom_metrics import CustomMeanSquaredError
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 import tensorflow as tf
 
 # Registrar explícitamente la función mse
@@ -11,6 +12,7 @@ import tensorflow as tf
 def mse(y_true, y_pred):
     return tf.keras.losses.mean_squared_error(y_true, y_pred)
 
+# File: code/model/model_manager.py
 class ModelManager:
     @staticmethod
     def save_model_and_hyperparameters(model, hyperparameters, model_path, hyperparameters_path):
@@ -32,3 +34,4 @@ class ModelManager:
     @staticmethod
     def model_exists(model_path, hyperparameters_path):
         return os.path.exists(model_path) and os.path.exists(hyperparameters_path)
+
