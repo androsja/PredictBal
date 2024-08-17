@@ -1,3 +1,4 @@
+import argparse
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -9,8 +10,16 @@ import os
 import matplotlib.pyplot as plt
 import glob
 
-# Leer los datos del fichero 'bal_six.txt'
-data = pd.read_csv('historic_data/bal_six.txt', sep=" - ", header=None, engine='python')
+# Configurar los argumentos de línea de comandos
+parser = argparse.ArgumentParser(description="Entrenar un modelo LSTM usando datos de un archivo específico.")
+parser.add_argument('data_file', type=str, help="Nombre del archivo de datos (e.g., 'rev_six.txt')")
+args = parser.parse_args()
+
+# Leer el nombre del archivo desde los argumentos de línea de comandos
+data_file = os.path.join('historic_data', args.data_file)
+
+# Leer los datos del fichero proporcionado
+data = pd.read_csv(data_file, sep=" - ", header=None, engine='python')
 data = data.values
 
 # Almacenar una copia de los datos originales
@@ -79,10 +88,10 @@ checkpoint_callback = ModelCheckpoint(
 )
 
 # Entrenar el modelo desde el último epoch válido
-model.fit(X, y, epochs=1000, batch_size=64, callbacks=[checkpoint_callback], initial_epoch=initial_epoch)
+model.fit(X, y, epochs=2000, batch_size=64, callbacks=[checkpoint_callback], initial_epoch=initial_epoch)
 
 # Borrar checkpoints antiguos, manteniendo solo los más recientes
-num_checkpoints_to_keep = 3
+num_checkpoints_to_keep = 5
 checkpoint_files = sorted(glob.glob(os.path.join(checkpoint_dir, 'model_epoch_*.keras')))
 if len(checkpoint_files) > num_checkpoints_to_keep:
     for file_to_remove in checkpoint_files[:-num_checkpoints_to_keep]:
@@ -101,7 +110,7 @@ predicted_last_y_scaled = model.predict(last_X)
 predicted_last_y = scaler.inverse_transform(predicted_last_y_scaled)
 
 # Guardar los datos en un archivo con el formato solicitado
-output_file = os.path.join('models_ai', 'bal_six_predict_detailed.txt')
+output_file = os.path.join('models_ai', 'rev_six_predict_detailed.txt')
 
 with open(output_file, 'w') as f:
     for i in range(len(X)):

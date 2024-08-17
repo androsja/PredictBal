@@ -3,14 +3,31 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import LSTM, Dense, Dropout
-from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import ModelCheckpoint, Callback
 from sklearn.preprocessing import MinMaxScaler
 import os
 import matplotlib.pyplot as plt
 import glob
+import sys
+
+# Verificar si se pasó el nombre del archivo como argumento
+if len(sys.argv) < 2:
+    print("Por favor, proporciona el nombre del archivo como argumento.")
+    sys.exit(1)
+
+# Obtener el nombre del archivo desde los argumentos de la línea de comandos
+file_name = sys.argv[1]
+
+# Asegurarse de que el archivo esté en la carpeta 'historic_data'
+file_path = os.path.join('historic_data', file_name)
+
+# Verificar si el archivo existe en la carpeta 'historic_data'
+if not os.path.exists(file_path):
+    print(f"El archivo {file_path} no existe. Verifica el nombre y vuelve a intentarlo.")
+    sys.exit(1)
 
 # Leer los datos del fichero con un separador personalizado
-data = pd.read_csv('historic_data/bal_five.txt', sep=" - ", header=None, engine='python')
+data = pd.read_csv(file_path, sep=" - ", header=None, engine='python')
 data = data.values
 
 # Escalar los datos entre 0 y 1
@@ -46,7 +63,7 @@ else:
     model = Sequential()
 
     # Añadir más capas LSTM con más neuronas y Dropout
-    model.add(LSTM(units=1024, return_sequences=True, input_shape=(X.shape[1], X.shape[2])))
+    model.add(LSTM(units=2048, return_sequences=True, input_shape=(X.shape[1], X.shape[2])))
     model.add(Dropout(0.3))
     model.add(LSTM(units=1024, return_sequences=True))
     model.add(Dropout(0.3))
@@ -71,15 +88,27 @@ checkpoint_callback = ModelCheckpoint(
     save_freq='epoch'
 )
 
-# Entrenar el modelo desde el último epoch
-model.fit(X, y, epochs=1000, batch_size=64, callbacks=[checkpoint_callback], initial_epoch=initial_epoch)
+# Callback personalizado para eliminar checkpoints antiguos después de cada epoch
+class CleanupCheckpointCallback(Callback):
+    def __init__(self, checkpoint_dir, num_checkpoints_to_keep=5):
+        super().__init__()
+        self.checkpoint_dir = checkpoint_dir
+        self.num_checkpoints_to_keep = num_checkpoints_to_keep
 
-# Borrar checkpoints antiguos, manteniendo solo los más recientes
-num_checkpoints_to_keep = 3
-if len(checkpoint_files) > num_checkpoints_to_keep:
-    for file_to_remove in checkpoint_files[:-num_checkpoints_to_keep]:
-        os.remove(file_to_remove)
-        print(f"Checkpoint eliminado: {file_to_remove}")
+    def on_epoch_end(self, epoch, logs=None):
+        # Buscar los archivos de checkpoint en el directorio
+        checkpoint_files = sorted(glob.glob(os.path.join(self.checkpoint_dir, 'model_epoch_*.keras')))
+        # Verificar si hay más checkpoints de los permitidos
+        if len(checkpoint_files) > self.num_checkpoints_to_keep:
+            for file_to_remove in checkpoint_files[:-self.num_checkpoints_to_keep]:
+                os.remove(file_to_remove)
+                print(f"Checkpoint eliminado: {file_to_remove}")
+
+# Crear la instancia del callback
+cleanup_callback = CleanupCheckpointCallback(checkpoint_dir)
+
+# Entrenar el modelo desde el último epoch
+model.fit(X, y, epochs=2000, batch_size=64, callbacks=[checkpoint_callback, cleanup_callback], initial_epoch=initial_epoch)
 
 # Predecir los valores
 y_pred_scaled = model.predict(X)
@@ -94,7 +123,7 @@ predicted_last_y_scaled = model.predict(last_X)
 predicted_last_y = scaler.inverse_transform(predicted_last_y_scaled)
 
 # Guardar los datos en un archivo con el formato solicitado
-output_file = os.path.join('models_ai', 'bal_five_predict_detailed.txt')
+output_file = os.path.join('models_ai', f'{os.path.splitext(os.path.basename(file_name))[0]}_predict_detailed.txt')
 
 with open(output_file, 'w') as f:
     for i in range(len(X_real)):
