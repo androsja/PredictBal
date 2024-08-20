@@ -63,11 +63,9 @@ else:
     model = Sequential()
 
     # Añadir más capas LSTM con más neuronas y Dropout
-    model.add(LSTM(units=2048, return_sequences=True, input_shape=(X.shape[1], X.shape[2])))
+    model.add(LSTM(units=1024, return_sequences=True, input_shape=(X.shape[1], X.shape[2])))
     model.add(Dropout(0.3))
     model.add(LSTM(units=1024, return_sequences=True))
-    model.add(Dropout(0.3))
-    model.add(LSTM(units=512, return_sequences=True))
     model.add(Dropout(0.3))
     model.add(LSTM(units=512))
     model.add(Dropout(0.3))
@@ -108,7 +106,7 @@ class CleanupCheckpointCallback(Callback):
 cleanup_callback = CleanupCheckpointCallback(checkpoint_dir)
 
 # Entrenar el modelo desde el último epoch
-model.fit(X, y, epochs=2000, batch_size=64, callbacks=[checkpoint_callback, cleanup_callback], initial_epoch=initial_epoch)
+model.fit(X, y, epochs=5000, batch_size=64, callbacks=[checkpoint_callback, cleanup_callback], initial_epoch=initial_epoch)
 
 # Predecir los valores
 y_pred_scaled = model.predict(X)
