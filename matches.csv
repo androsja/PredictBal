@@ -1,0 +1,22 @@
+,0,1,2,3,Average
+SVR,0.0,0.0,2.0,0.0,0.5
+Random Forest,0.0,1.0,0.0,0.0,0.25
+KNN,0.0,1.0,0.0,1.0,0.5
+Gradient Boosting,0.0,1.0,1.0,0.0,0.5
+XGBoost,0.0,1.0,1.0,2.0,1.0
+LightGBM,0.0,0.0,0.0,0.0,0.0
+CatBoost,0.0,0.0,0.0,0.0,0.0
+ElasticNet,0.0,1.0,1.0,0.0,0.5
+AdaBoost,0.0,2.0,1.0,0.0,0.75
+Bagging,0.0,1.0,1.0,0.0,0.5
+Bayesian Ridge,0.0,1.0,1.0,0.0,0.5
+SVR RBF,0.0,0.0,2.0,0.0,0.5
+Gradient Boosting Regressor,0.0,1.0,1.0,0.0,0.5
+Random Forest Tuned,0.0,1.0,1.0,0.0,0.5
+DNN,0.0,1.0,1.0,0.0,0.5
+RF Variant,0.0,1.0,1.0,0.0,0.5
+Column Based,0.0,1.0,1.0,0.0,0.5
+Column Based SVR,0.0,0.0,0.0,0.0,0.0
+LSTM,0.0,0.0,0.0,0.0,0.0
+LSTM Column,0.0,1.0,0.0,0.0,0.25
+Transformer,0.0,1.0,0.0,1.0,0.5

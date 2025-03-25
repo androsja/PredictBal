@@ -1,0 +1,188 @@
+SISTEMA DE PREDICCIÓN DE LOTERÍA - PROMPT COMPLETO
+
+===========================================
+ESTRUCTURA DE ARCHIVOS Y DIRECTORIOS
+===========================================
+
+lottery_prediction/
+├── historic_data/
+│   └── bal_results_i.txt (archivo con resultados históricos)
+├── models/
+│   ├── lottery_predictor_svr.py
+│   ├── lottery_predictor_rf.py
+│   ├── lottery_predictor_knn.py
+│   ├── lottery_predictor_gbr.py
+│   ├── lottery_predictor_xgboost.py
+│   ├── lottery_predictor_lightgbm.py
+│   ├── lottery_predictor_catboost.py
+│   ├── lottery_predictor_elasticnet.py
+│   ├── lottery_predictor_adaboost.py
+│   ├── lottery_predictor_bagging.py
+│   ├── lottery_predictor_bayesianridge.py
+│   ├── lottery_predictor_svr_rbf.py
+│   ├── lottery_predictor_gradient_boosting.py
+│   ├── lottery_predictor_rf_tuned.py
+│   ├── lottery_predictor_dnn.py
+│   ├── lottery_predictor_rf_variant.py
+│   ├── lottery_predictor_column_based_linear_regression.py
+│   ├── lottery_predictor_column_based_svr.py
+│   ├── lottery_predictor_lstm.py
+│   └── lottery_predictor_lstm_column.py
+├── utils/
+│   ├── lottery_data.py
+│   ├── lottery_matcher.py
+│   └── probability_calculator.py
+└── main.py
+
+===========================================
+ESPECIFICACIONES DE DATOS
+===========================================
+
+1. FORMATO DE ENTRADA
+- Archivo: bal_results_i.txt
+- Contenido: Números de lotería históricos
+- Estructura: 6 números por línea
+- Formato: 5 números regulares (1-43) + 1 complementario (1-16)
+
+2. FORMATO DE SALIDA
+- Predicción: Lista de 6 números [n1, n2, n3, n4, n5, complementario]
+- Números regulares: Ordenados de menor a mayor
+- Sin duplicados en números regulares
+- Complementario diferente a números regulares
+
+===========================================
+IMPLEMENTACIÓN DE PREDICTORES
+===========================================
+
+1. ESTRUCTURA BÁSICA DE CADA PREDICTOR
+class LotteryPredictor:
+    def __init__(self, data):
+        self.data = data
+        
+    def train(self):
+        # Entrenamiento
+        
+    def predict(self):
+        # Retorna [n1, n2, n3, n4, n5, complementario]
+
+2. CARACTERÍSTICAS COMUNES
+- Preprocesamiento de datos
+- Validación de predicciones
+- Manejo de secuencias temporales
+- Control de rangos numéricos
+- Eliminación de duplicados
+- Ordenamiento de números
+
+3. CONFIGURACIONES POR MODELO
+
+SVR:
+- kernel: 'rbf'
+- C: 100
+- epsilon: 0.1
+- gamma: 'scale'
+- cache_size: 1000
+- sequence_length: 10
+
+Random Forest:
+- n_estimators: 100
+- max_depth: 10
+- min_samples_split: 2
+- min_samples_leaf: 1
+
+LSTM:
+- units: [128, 64]
+- dropout: 0.3
+- batch_size: 32
+- epochs: 100
+
+===========================================
+FUNCIONES PRINCIPALES
+===========================================
+
+1. PREPROCESAMIENTO
+def prepare_data(data):
+    # Limpieza de datos
+    # Normalización
+    # Creación de secuencias
+    return X, y
+
+2. VALIDACIÓN
+def validate_prediction(numbers):
+    # Validar rangos
+    # Eliminar duplicados
+    # Ordenar números regulares
+    # Validar complementario
+    return validated_numbers
+
+3. MÉTRICAS
+def calculate_distance(predictions, actual):
+    return np.linalg.norm(predictions - actual)
+
+def calculate_matches(predictions, actual):
+    regular_matches = len(set(predictions[:5]) & set(actual[:5]))
+    complementary_match = predictions[5] == actual[5]
+    return regular_matches, complementary_match
+
+===========================================
+ARCHIVOS DE SALIDA
+===========================================
+
+1. CSV GENERADOS
+- distances.csv: Distancias entre predicciones y valores reales
+- matches.csv: Coincidencias encontradas
+- matching_numbers.csv: Números coincidentes
+- predicted_numbers.csv: Números predichos
+
+2. FORMATO DE RESULTADOS
+- Matriz de distancias con promedio
+- Matriz de coincidencias con promedio
+- Matriz de números coincidentes
+- Matriz de números predichos
+- Probabilidades calculadas
+
+===========================================
+REQUISITOS DEL SISTEMA
+===========================================
+
+DEPENDENCIAS:
+numpy>=1.19.2
+pandas>=1.2.4
+scikit-learn>=0.24.2
+tensorflow>=2.5.0
+xgboost>=1.4.2
+lightgbm>=3.2.1
+catboost>=0.25.1
+
+===========================================
+ARGUMENTOS DE LÍNEA DE COMANDOS
+===========================================
+
+-r [Y/N]: Recalcular distancias
+-nr [int]: Número de registros para prueba (default: 3)
+
+===========================================
+MEJORAS FUTURAS
+===========================================
+
+1. OPTIMIZACIÓN
+- Búsqueda de hiperparámetros
+- Validación cruzada
+- Paralelización de procesos
+
+2. NUEVOS MODELOS
+- Transformer
+- Ensemble híbrido
+- AutoML
+- GRU
+- CNN-LSTM
+
+3. ANÁLISIS ADICIONAL
+- Visualización de patrones
+- Análisis de tendencias
+- Métricas adicionales
+- Análisis de frecuencia
+- Patrones temporales
+
+===========================================
+FIN DEL PROMPT
+=========================================== 

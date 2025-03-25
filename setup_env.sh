@@ -8,8 +8,8 @@ fi
 # Activar el entorno virtual
 source myenv/bin/activate
 
-# Instalar pandas, tensorflow, keras-tuner y alpha_vantage dentro del entorno virtual
-pip install pandas tensorflow scikit-learn keras-tuner alpha_vantage quandl yfinance matplotlib
+# Instalar pandas, tensorflow, scikit-learn, keras-tuner, alpha_vantage, quandl, yfinance, matplotlib y seaborn
+pip install pandas tensorflow scikit-learn keras-tuner alpha_vantage quandl yfinance matplotlib seaborn xgboost lightgbm catboost
 
 
 # Informar al usuario sobre cómo activar el entorno virtual en futuras sesiones
