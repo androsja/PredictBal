@@ -100,17 +100,44 @@ class LotteryPredictorAdaBoost:
                 regular_numbers.append(new_num)
         regular_numbers = sorted(regular_numbers[:5])
         
-        # Predecir complementario
+        # Predecir complementario con múltiples intentos
         last_complementary = self.data.iloc[-1, 5:].values.reshape(1, -1)
         last_complementary_scaled = self.scaler_complementary.transform(last_complementary)
         
-        # Realizar predicción del complementario
-        complementary_pred = self.complementary_model.predict(last_complementary_scaled)[0]
-        complementary = self.scaler_complementary.inverse_transform([[complementary_pred]])[0][0]
-        complementary = int(np.clip(round(complementary), 1, 16))
+        # Realizar múltiples predicciones del complementario
+        complementary_predictions = []
+        for _ in range(5):  # Hacer 5 predicciones
+            complementary_pred = self.complementary_model.predict(last_complementary_scaled)[0]
+            complementary = self.scaler_complementary.inverse_transform([[complementary_pred]])[0][0]
+            complementary = int(np.clip(round(complementary), 1, 16))
+            complementary_predictions.append(complementary)
+        
+        # Analizar la distribución de predicciones
+        unique_predictions, counts = np.unique(complementary_predictions, return_counts=True)
+        
+        # Si hay predicciones únicas, usar la más frecuente
+        if len(unique_predictions) > 1:
+            most_frequent = unique_predictions[np.argmax(counts)]
+            complementary = most_frequent
+        else:
+            # Si todas las predicciones son iguales, usar la predicción original
+            complementary = complementary_predictions[0]
         
         # Asegurar que el complementario no está en los números regulares
         while complementary in regular_numbers:
-            complementary = (complementary % 16) + 1
+            # Si el complementario está en los números regulares, elegir el siguiente número disponible
+            available_numbers = [n for n in range(1, 17) if n not in regular_numbers]
+            if available_numbers:
+                complementary = available_numbers[0]
+            else:
+                # Si no hay números disponibles, usar el siguiente número después del último
+                complementary = (complementary % 16) + 1
+        
+        # Imprimir información de depuración
+        print(f"\nPredicción del complementario:")
+        print(f"Predicciones múltiples: {complementary_predictions}")
+        print(f"Números únicos predichos: {unique_predictions}")
+        print(f"Frecuencia de cada número: {counts}")
+        print(f"Complementario final seleccionado: {complementary}")
         
         return regular_numbers + [complementary] 

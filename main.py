@@ -22,9 +22,15 @@ from lottery_predictor_lstm_column import LotteryPredictorLSTMColumn
 from lottery_predictor_transformer import LotteryPredictorTransformer
 from lottery_matcher import LotteryMatcher
 from probability_calculator import ProbabilityCalculator
+from algorithm_ranker import AlgorithmRanker
+from best_predictor import BestPredictor
+from lottery_predictor_lightboost import LotteryPredictorLightBoost
 import pandas as pd
 import numpy as np
+import ast
 import argparse
+from itertools import combinations
+from lottery_analyzer import LotteryAnalyzer
 
 def calculate_distance(predictions, actual):
     return np.linalg.norm(predictions - actual)
@@ -37,6 +43,75 @@ def parse_arguments():
     parser.add_argument('-nr', type=int, default=3,
                       help='Number of records to remove for prediction testing (default: 3)')
     return parser.parse_args()
+
+def analyze_predictions(predicted_numbers_df, num_iterations=50, top_combinations=10):
+    """
+    Analiza las predicciones y retorna los mejores conjuntos de números para invertir
+    """
+    recommended_combinations = []
+    algorithm_weights = {}
+    
+    # 1. Calcular el peso de cada algoritmo basado en su rendimiento histórico
+    for algorithm in predicted_numbers_df.index:
+        if algorithm not in ['Actual numbers', 'Count All Numbers Predicted', 
+                           'Most Frequent Numbers', 'Most Frequent Complementary',
+                           'Actual Numbers Found In Most Frequent', 
+                           'Actual Complementary Found']:
+            matches = 0
+            total_predictions = 0
+            for i in range(1, len(predicted_numbers_df.columns)):
+                if predicted_numbers_df.iloc[algorithm][i] != []:
+                    actual = predicted_numbers_df.loc['Actual numbers'][i]
+                    predicted = predicted_numbers_df.loc[algorithm][i]
+                    if isinstance(actual, list) and isinstance(predicted, list):
+                        matches += len(set(actual[:5]) & set(predicted[:5]))
+                        if actual[5] == predicted[5]:  # Complementario
+                            matches += 1
+                        total_predictions += 6
+            
+            if total_predictions > 0:
+                algorithm_weights[algorithm] = matches / total_predictions
+
+    # 2. Generar combinaciones basadas en las predicciones más recientes
+    latest_combinations = []
+    
+    # Usar las predicciones más recientes de cada algoritmo
+    for algorithm in algorithm_weights:
+        weight = algorithm_weights[algorithm]
+        latest_pred = predicted_numbers_df.loc[algorithm][0]  # Predicción más reciente
+        if isinstance(latest_pred, list) and len(latest_pred) == 6:
+            latest_combinations.append({
+                'numbers': latest_pred,
+                'weight': weight,
+                'algorithm': algorithm
+            })
+
+    # 3. Analizar frecuencias en las predicciones más recientes
+    number_frequency = {}
+    complementary_frequency = {}
+    
+    for combo in latest_combinations:
+        for num in combo['numbers'][:5]:
+            number_frequency[num] = number_frequency.get(num, 0) + combo['weight']
+        complementary_frequency[combo['numbers'][5]] = complementary_frequency.get(combo['numbers'][5], 0) + combo['weight']
+
+    # 4. Generar las mejores combinaciones
+    most_frequent_regular = sorted(number_frequency.items(), key=lambda x: x[1], reverse=True)[:15]
+    most_frequent_complementary = sorted(complementary_frequency.items(), key=lambda x: x[1], reverse=True)[:5]
+
+    # 5. Crear combinaciones finales
+    regular_numbers = [num for num, _ in most_frequent_regular]
+    for reg_combo in combinations(regular_numbers, 5):
+        for comp_num, _ in most_frequent_complementary:
+            recommended_combinations.append({
+                'regular_numbers': sorted(list(reg_combo)),
+                'complementary': comp_num,
+                'score': sum(number_frequency[num] for num in reg_combo) + complementary_frequency[comp_num]
+            })
+
+    # 6. Ordenar y seleccionar las mejores combinaciones
+    recommended_combinations.sort(key=lambda x: x['score'], reverse=True)
+    return recommended_combinations[:top_combinations]
 
 # Función principal
 def main():
@@ -75,11 +150,12 @@ def main():
             'Random Forest Tuned': [],
             'DNN': [],
             'RF Variant': [],
-            'Column Based': [],
+            'Column Based Linear regression': [],
             'Column Based SVR': [],
             'LSTM': [],
             'LSTM Column': [],
-            'Transformer': []
+            'Transformer': [],
+            'LightBoost': []
         }
 
         # Diccionario para almacenar el conteo de coincidencias
@@ -100,11 +176,12 @@ def main():
             'Random Forest Tuned': [],
             'DNN': [],
             'RF Variant': [],
-            'Column Based': [],
+            'Column Based Linear regression': [],
             'Column Based SVR': [],
             'LSTM': [],
             'LSTM Column': [],
-            'Transformer': []
+            'Transformer': [],
+            'LightBoost': []
         }
 
         # Diccionario para almacenar los números coincidentes
@@ -126,14 +203,15 @@ def main():
             'Random Forest Tuned': [],
             'DNN': [],
             'RF Variant': [],
-            'Column Based': [],
+            'Column Based Linear regression': [],
             'Column Based SVR': [],
             'LSTM': [],
             'LSTM Column': [],
             'Transformer': [],
             'Count Found': [],
             'All Found Numbers': [],
-            'All Found Complementary': []
+            'All Found Complementary': [],
+            'LightBoost': []
         }
 
         predicted_numbers = {
@@ -154,7 +232,7 @@ def main():
             'Random Forest Tuned': [],
             'DNN': [],
             'RF Variant': [],
-            'Column Based': [],
+            'Column Based Linear regression': [],
             'Column Based SVR': [],
             'LSTM': [],
             'LSTM Column': [],
@@ -163,7 +241,8 @@ def main():
             'Most Frequent Numbers': [],
             'Most Frequent Complementary': [],
             'Actual Numbers Found In Most Frequent': [],
-            'Actual Complementary Found': []
+            'Actual Complementary Found': [],
+            'LightBoost': []
         }
 
         # Iterate from 1 to num_records_to_remove (inclusive)
@@ -213,11 +292,12 @@ def main():
             process_predictions(LotteryPredictorRFTuned, 'Random Forest Tuned')
             process_predictions(LotteryPredictorDNN, 'DNN')
             process_predictions(LotteryPredictorRFVariant, 'RF Variant')
-            process_predictions(LotteryPredictorColumnBasedLinearRegression, 'Column Based')
+            process_predictions(LotteryPredictorColumnBasedLinearRegression, 'Column Based Linear regression')
             process_predictions(LotteryPredictorColumnBasedSVR, 'Column Based SVR')
             process_predictions(LotteryPredictorLSTM, 'LSTM')
             process_predictions(LotteryPredictorLSTMColumn, 'LSTM Column')
             process_predictions(LotteryPredictorTransformer, 'Transformer')
+            process_predictions(LotteryPredictorLightBoost, 'LightBoost')
 
             # Y modificar la parte donde se guardan los números actuales
             # Dentro del bucle for i in range(1, num_records_to_remove + 1):
@@ -386,15 +466,39 @@ def main():
         # Calcular y mostrar las probabilidades usando la nueva clase
         ProbabilityCalculator.print_probabilities(predicted_numbers_df)
 
+        # Mostrar la matriz de números predichos
+        print("\nMatriz de números predichos:")
+        print(predicted_numbers_df)
+
+        # Después de calcular las matrices
+        print("\nCalculando ranking de algoritmos...")
+        ranker = AlgorithmRanker(
+            predicted_numbers_df=predicted_numbers_df,
+            distance_df=distance_df,
+            matches_df=matches_df
+        )
+        
+        algorithm_ranking = ranker.rank_algorithms()
+        ranker.print_ranking(algorithm_ranking)
+
+        # Crear y ejecutar el analizador de lotería
+        print("\n=== ANÁLISIS DETALLADO DE PREDICCIONES ===")
+        analyzer = LotteryAnalyzer(
+            predicted_numbers_df=predicted_numbers_df,
+            matches_df=matches_df,
+            distance_df=distance_df
+        )
+        
+        # Realizar análisis y mostrar resultados
+        results = analyzer.analyze(top_combinations=10)
+        analyzer.print_analysis_results(results)
+
     else:
         # Cargar la matriz de distancias desde el archivo CSV
         distance_df = pd.read_csv(distance_file, index_col=0)
 
         # Cargar la matriz de coincidencias desde el archivo CSV
         matches_df = pd.read_csv('matches.csv', index_col=0)
-
-        # Cargar la matriz de números coincidentes desde el archivo CSV
-        matching_numbers_df = pd.read_csv('transposed_matching_numbers.csv', index_col=0)
 
         # Cargar la matriz de números predichos desde el archivo CSV
         predicted_numbers_df = pd.read_csv('predicted_numbers.csv', index_col=0)
@@ -407,16 +511,27 @@ def main():
     print("\nMatriz de coincidencias con promedio:")
     print(matches_df)
 
-    # Mostrar la matriz de números coincidentes
-    print("\nMatriz de números coincidentes:")
-    print(matching_numbers_df)
 
     # Mostrar la matriz de números predichos
     print("\nMatriz de números predichos:")
     print(predicted_numbers_df)
 
-    # Calcular y mostrar las probabilidades usando la nueva clase
-    ProbabilityCalculator.print_probabilities(predicted_numbers_df)
+
+    # Después de calcular las matrices
+    print("\nCalculando ranking de algoritmos...")
+    ranker = AlgorithmRanker(
+        predicted_numbers_df=predicted_numbers_df,
+        distance_df=distance_df,
+        matches_df=matches_df
+    )
+    
+    algorithm_ranking = ranker.rank_algorithms()
+    ranker.print_ranking(algorithm_ranking)
+
+    predictor = BestPredictor(predicted_numbers_df, distance_df, matches_df)
+    recommendation = predictor.get_recommendations(top_n=5)
+    print(recommendation)
+
 
 if __name__ == "__main__":
     main() 

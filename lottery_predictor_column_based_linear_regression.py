@@ -14,6 +14,9 @@ class LotteryPredictorColumnBasedLinearRegression:
         # Modelos de regresión lineal para números regulares y complementario
         self.regular_models = [LinearRegression() for _ in range(5)]
         self.complementary_model = LinearRegression()
+        
+        # Historial de predicciones
+        self.prediction_history = []
 
     def prepare_regular_data(self, column_index):
         if isinstance(self.data, pd.DataFrame):
@@ -45,7 +48,7 @@ class LotteryPredictorColumnBasedLinearRegression:
             X, y = self.prepare_regular_data(i)
             # Split de datos para validación
             X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=0.2, random_state=42
+                X, y, test_size=0.2, random_state=42+i  # Diferente seed para cada modelo
             )
             # Entrenar modelo
             self.regular_models[i].fit(X_train, y_train)
@@ -67,8 +70,9 @@ class LotteryPredictorColumnBasedLinearRegression:
 
     def predict(self):
         regular_predictions = []
+        used_numbers = set()
         
-        # Predecir números regulares
+        # Predecir números regulares con variación
         for i in range(5):
             if isinstance(self.data, pd.DataFrame):
                 last_data = self.regular_scalers[i].transform(
@@ -79,25 +83,38 @@ class LotteryPredictorColumnBasedLinearRegression:
                     self.data[-1, i].reshape(1, -1)
                 )
                 
+            # Obtener predicción base
             prediction = self.regular_models[i].predict(last_data)
             predicted_value = self.regular_scalers[i].inverse_transform(
                 prediction.reshape(-1, 1)
             )[0, 0]
+            
+            # Añadir variación aleatoria (±2)
+            variation = np.random.randint(-2, 3)
+            predicted_value += variation
+            
+            # Asegurar que está en el rango correcto
+            predicted_value = int(np.clip(round(predicted_value), 1, 43))
+            
+            # Evitar duplicados
+            attempts = 0
+            while predicted_value in used_numbers and attempts < 10:
+                predicted_value = np.random.randint(1, 44)
+                attempts += 1
+            
+            used_numbers.add(predicted_value)
             regular_predictions.append(predicted_value)
         
-        # Redondear y ajustar números regulares
-        regular_numbers = np.round(regular_predictions).astype(int)
-        regular_numbers = np.clip(regular_numbers, 1, 43)
-        regular_numbers = list(set(regular_numbers))
-        
         # Asegurar que tenemos 5 números únicos
-        while len(regular_numbers) < 5:
+        while len(regular_predictions) < 5:
             new_num = np.random.randint(1, 44)
-            if new_num not in regular_numbers:
-                regular_numbers.append(new_num)
-        regular_numbers = sorted(regular_numbers[:5])
+            if new_num not in used_numbers:
+                regular_predictions.append(new_num)
+                used_numbers.add(new_num)
         
-        # Predecir complementario
+        regular_numbers = sorted(regular_predictions[:5])
+        
+        # Predecir complementario con sistema híbrido
         if isinstance(self.data, pd.DataFrame):
             last_complementary = self.complementary_scaler.transform(
                 self.data.iloc[-1, 5].reshape(1, -1)
@@ -106,15 +123,27 @@ class LotteryPredictorColumnBasedLinearRegression:
             last_complementary = self.complementary_scaler.transform(
                 self.data[-1, 5].reshape(1, -1)
             )
-            
-        complementary_pred = self.complementary_model.predict(last_complementary)
-        complementary = self.complementary_scaler.inverse_transform(
-            complementary_pred.reshape(-1, 1)
-        )[0, 0]
-        complementary = int(np.clip(round(complementary), 1, 16))
+        
+        # 70% del tiempo usar el modelo con variación, 30% número aleatorio
+        if np.random.random() < 0.7:
+            complementary_pred = self.complementary_model.predict(last_complementary)
+            complementary = self.complementary_scaler.inverse_transform(
+                complementary_pred.reshape(-1, 1)
+            )[0, 0]
+            # Añadir variación aleatoria
+            variation = np.random.randint(-2, 3)
+            complementary = int(np.clip(round(complementary + variation), 1, 16))
+        else:
+            # Generar número aleatorio para el complementario
+            complementary = np.random.randint(1, 17)
         
         # Asegurar que el complementario no está en los números regulares
-        while complementary in regular_numbers:
+        attempts = 0
+        while complementary in regular_numbers and attempts < 16:
             complementary = (complementary % 16) + 1
+            attempts += 1
         
-        return regular_numbers + [complementary] 
+        final_prediction = regular_numbers + [complementary]
+        self.prediction_history.append(final_prediction)
+        
+        return final_prediction 

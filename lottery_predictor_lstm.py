@@ -26,7 +26,8 @@ class LotteryPredictorLSTM:
             nums = [int(n.strip()) for n in row_str.split() if n.strip()]
             if nums:
                 regular_numbers.append(nums[:5])
-                complementary_numbers.append([nums[5]])
+                # Restar 1 al complementario para que esté en el rango 0-15
+                complementary_numbers.append([nums[5] - 1])
         
         self.processed_regular = np.array(regular_numbers)
         self.processed_complementary = np.array(complementary_numbers)
@@ -48,7 +49,7 @@ class LotteryPredictorLSTM:
             sequence = self.processed_complementary[i:i + self.sequence_length]
             target = self.processed_complementary[i + self.sequence_length]
             X_comp.append(sequence)
-            y_comp.append(target)
+            y_comp.append(target[0])  # Tomar solo el valor, no el array
         
         X_comp = np.array(X_comp)
         y_comp = np.array(y_comp)
@@ -61,15 +62,7 @@ class LotteryPredictorLSTM:
         X_reg_final = X_reg_scaled.reshape(X_reg.shape)
         y_reg_final = y_reg_scaled.reshape(y_reg.shape)
         
-        # Normalizar datos complementario
-        X_comp_reshaped = X_comp.reshape(-1, X_comp.shape[-1])
-        y_comp_reshaped = y_comp.reshape(-1, y_comp.shape[-1])
-        X_comp_scaled = self.scaler_complementary.fit_transform(X_comp_reshaped)
-        y_comp_scaled = self.scaler_complementary.transform(y_comp_reshaped)
-        X_comp_final = X_comp_scaled.reshape(X_comp.shape)
-        y_comp_final = y_comp_scaled.reshape(y_comp.shape)
-        
-        return (X_reg_final, y_reg_final), (X_comp_final, y_comp_final)
+        return (X_reg_final, y_reg_final), (X_comp, y_comp)
 
     def create_regular_model(self):
         model = Sequential([
@@ -100,9 +93,10 @@ class LotteryPredictorLSTM:
             LSTM(32, return_sequences=False),
             BatchNormalization(),
             Dropout(0.3),
-            Dense(16, activation='relu'),
+            Dense(32, activation='relu'),
             BatchNormalization(),
-            Dense(1, activation='sigmoid')
+            Dropout(0.3),
+            Dense(16, activation='softmax')  # Una neurona por cada posible número (0-15)
         ])
         return model
 
@@ -118,12 +112,15 @@ class LotteryPredictorLSTM:
             metrics=['mae']
         )
         
+        # Convertir los datos del complementario a one-hot encoding
+        y_comp_onehot = tf.keras.utils.to_categorical(y_comp, num_classes=16)
+        
         # Crear y entrenar modelo complementario
         self.complementary_model = self.create_complementary_model()
         self.complementary_model.compile(
             optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
-            loss='mse',
-            metrics=['mae']
+            loss='categorical_crossentropy',
+            metrics=['accuracy']
         )
         
         early_stopping = tf.keras.callbacks.EarlyStopping(
@@ -136,6 +133,7 @@ class LotteryPredictorLSTM:
         split_reg = int(len(X_reg) * 0.8)
         split_comp = int(len(X_comp) * 0.8)
         
+        print("\nEntrenando modelo regular...")
         # Entrenar modelo regular
         self.regular_model.fit(
             X_reg[:split_reg], y_reg[:split_reg],
@@ -143,18 +141,26 @@ class LotteryPredictorLSTM:
             batch_size=32,
             validation_data=(X_reg[split_reg:], y_reg[split_reg:]),
             callbacks=[early_stopping],
-            verbose=0
+            verbose=1
         )
         
-        # Entrenar modelo complementario
-        self.complementary_model.fit(
-            X_comp[:split_comp], y_comp[:split_comp],
+        print("\nEntrenando modelo complementario...")
+        # Entrenar modelo complementario con datos one-hot
+        history = self.complementary_model.fit(
+            X_comp[:split_comp], y_comp_onehot[:split_comp],
             epochs=100,
             batch_size=32,
-            validation_data=(X_comp[split_comp:], y_comp[split_comp:]),
+            validation_data=(X_comp[split_comp:], y_comp_onehot[split_comp:]),
             callbacks=[early_stopping],
-            verbose=0
+            verbose=1
         )
+        
+        # Imprimir métricas finales
+        print("\nMétricas finales del modelo complementario:")
+        val_loss = history.history['val_loss'][-1]
+        val_accuracy = history.history['val_accuracy'][-1]
+        print(f"Pérdida de validación: {val_loss:.4f}")
+        print(f"Precisión de validación: {val_accuracy:.4f}")
 
     def predict(self):
         if self.regular_model is None or self.complementary_model is None:
@@ -171,7 +177,6 @@ class LotteryPredictorLSTM:
         reg_prediction_reshaped = reg_prediction_scaled.reshape(-1, 5)
         reg_prediction = self.scaler_regular.inverse_transform(reg_prediction_reshaped)
         
-        # Procesar números regulares
         regular_numbers = [max(1, min(43, round(x))) for x in reg_prediction[0]]
         regular_numbers = list(set(regular_numbers))
         while len(regular_numbers) < 5:
@@ -183,17 +188,36 @@ class LotteryPredictorLSTM:
         # Predecir complementario
         last_comp_sequence = self.processed_complementary[-self.sequence_length:]
         X_comp_pred = last_comp_sequence.reshape(1, self.sequence_length, 1)
-        X_comp_pred_reshaped = X_comp_pred.reshape(-1, X_comp_pred.shape[-1])
-        X_comp_pred_scaled = self.scaler_complementary.transform(X_comp_pred_reshaped)
-        X_comp_pred_final = X_comp_pred_scaled.reshape(X_comp_pred.shape)
         
-        comp_prediction_scaled = self.complementary_model.predict(X_comp_pred_final, verbose=0)
-        comp_prediction_reshaped = comp_prediction_scaled.reshape(-1, 1)
-        comp_prediction = self.scaler_complementary.inverse_transform(comp_prediction_reshaped)
+        # Obtener distribución de probabilidades
+        probabilities = self.complementary_model.predict(X_comp_pred, verbose=0)[0]
         
-        # Procesar complementario
-        complementary = int(max(1, min(16, round(comp_prediction[0][0]))))
-        while complementary in regular_numbers:
-            complementary = (complementary % 16) + 1
+        # Filtrar probabilidades de números que ya están en regular_numbers
+        for num in regular_numbers:
+            if num <= 16:  # Solo ajustar números que podrían ser complementarios
+                probabilities[num - 1] = 0
+        
+        # Renormalizar probabilidades
+        if np.sum(probabilities) > 0:
+            probabilities = probabilities / np.sum(probabilities)
+        else:
+            # Si todas las probabilidades son 0, crear distribución uniforme para números disponibles
+            available_numbers = [i for i in range(16) if (i + 1) not in regular_numbers]
+            probabilities = np.zeros(16)
+            probabilities[available_numbers] = 1.0 / len(available_numbers)
+        
+        # Seleccionar número basado en las probabilidades ajustadas
+        complementary_idx = np.random.choice(range(16), p=probabilities)
+        complementary = complementary_idx + 1  # Convertir de vuelta al rango 1-16
+        
+        # Imprimir información de depuración
+        print(f"\nPredicción del complementario (LSTM):")
+        print(f"Secuencia de entrada (últimos {self.sequence_length} complementarios):")
+        print([x[0] + 1 for x in last_comp_sequence])
+        print("\nProbabilidades para cada número complementario:")
+        for i, prob in enumerate(probabilities, 1):
+            if prob > 0:  # Solo mostrar números con probabilidad > 0
+                print(f"Número {i}: {prob:.4f}")
+        print(f"\nComplementario seleccionado: {complementary}")
         
         return regular_numbers + [complementary] 

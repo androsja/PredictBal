@@ -1,26 +1,27 @@
-,0,1,2,3
-Actual numbers,To be predicted,8 - 12 - 22 - 26 - 28 - 1,9 - 15 - 18 - 28 - 42 - 11,1 - 18 - 27 - 40 - 43 - 1
-SVR,To be predicted,,R9 & R28,
-Random Forest,To be predicted,R22,,
-KNN,To be predicted,R22,,R40
-Gradient Boosting,To be predicted,R22,R9,
-XGBoost,To be predicted,R22,R9,R18 & R43
-LightGBM,To be predicted,,,
-CatBoost,To be predicted,,,
-ElasticNet,To be predicted,R22,R15,
-AdaBoost,To be predicted,R8 & R22,R15,
-Bagging,To be predicted,R22,R28,
-Bayesian Ridge,To be predicted,R28,R18,
-SVR RBF,To be predicted,,R9 & R28,
-Gradient Boosting Regressor,To be predicted,R22,R9,
-Random Forest Tuned,To be predicted,R22,R9,
-DNN,To be predicted,R22,R15,
-RF Variant,To be predicted,R22,R9,
-Column Based,To be predicted,R22,R15,
-Column Based SVR,To be predicted,,,
-LSTM,To be predicted,,,
-LSTM Column,To be predicted,R22,,
-Transformer,To be predicted,R22,,R1
-Count Found,1,3,4,4
-All Found Numbers,['To be predicted'],"['R22', 'R28', 'R8']","['R15', 'R18', 'R28', 'R9']","['R1', 'R18', 'R40', 'R43']"
-All Found Complementary,[],[],[],[]
+,0,1,2
+Actual numbers,To be predicted,3 - 9 - 21 - 27 - 39 - 3,6 - 10 - 17 - 21 - 40 - 16
+SVR,To be predicted,R39,
+Random Forest,To be predicted,,
+KNN,To be predicted,R9 & R27,
+Gradient Boosting,To be predicted,,
+XGBoost,To be predicted,,R21 & R40
+LightGBM,To be predicted,,
+CatBoost,To be predicted,,
+ElasticNet,To be predicted,,
+AdaBoost,To be predicted,,
+Bagging,To be predicted,,
+Bayesian Ridge,To be predicted,R21,
+SVR RBF,To be predicted,R21,R21
+Gradient Boosting Regressor,To be predicted,,
+Random Forest Tuned,To be predicted,,
+DNN,To be predicted,R21,
+RF Variant,To be predicted,,
+Column Based Linear regression,To be predicted,R9,
+Column Based SVR,To be predicted,R39,R6
+LSTM,To be predicted,R27,R21
+LSTM Column,To be predicted,R21,
+Transformer,To be predicted,,
+Count Found,1,4,3
+All Found Numbers,['To be predicted'],"['R21', 'R27', 'R39', 'R9']","['R21', 'R40', 'R6']"
+All Found Complementary,[],[],[]
+LightBoost,To be predicted,,
